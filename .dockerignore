@@ -1,0 +1,13 @@
+**
+!public/
+!public/**
+!app/
+!app/frontend.html
+!lib/
+!lib/finance-store.mjs
+!standalone/
+!standalone/**
+!LICENSE
+!THIRD_PARTY_NOTICES.md
+!licenses/
+!licenses/**

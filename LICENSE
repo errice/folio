@@ -1,0 +1,66 @@
+Folio Community License 1.0
+
+Copyright (c) 2026 Mr Chris (GitHub: @errice).
+
+This is a source-available license. It is not an OSI-approved open-source
+license because it restricts selling the Software.
+
+1. Permission to use and share
+
+Subject to these terms, you may use, run, copy, study, modify, and distribute
+Folio and its documentation (the "Software"), including modified versions,
+without paying a license fee. Personal use, educational use, nonprofit use,
+and internal use by a business are permitted.
+
+2. Commercial sale requires written permission
+
+Without prior written permission from Mr Chris (@errice), you may not:
+
+  a. sell, rent, or license the Software or a modified version for a fee;
+  b. charge users to access the Software or a modified version as a hosted
+     service, subscription, or software-as-a-service offering; or
+  c. bundle the Software or a modified version as a material component of
+     a product or service sold for compensation.
+
+Changing the name, branding, interface, or implementation does not remove
+this condition from a modified version. Ordinary use of Folio to manage
+your own personal finances or your organization's internal finances does
+not, by itself, constitute selling the Software.
+
+For commercial permission, contact the maintainer through
+https://github.com/errice/folio and obtain written agreement before selling
+or charging for access. A public repository or accepted contribution is
+not commercial permission.
+
+3. Conditions on redistribution
+
+Keep this license, its copyright notice, and applicable third-party notices
+with all copies or substantial portions of the Software. Distribute modified
+versions under these same terms, identify your changes, and do not imply
+that the original author endorses your version. You may not remove or
+replace the commercial-sale restriction from the original Software or its
+modified versions without the copyright holder's written permission.
+
+4. Ownership and third-party materials
+
+Ownership is not transferred. This license does not grant trademark rights
+or the right to misrepresent a modified version as an official Folio release.
+It does not apply to financial records entered by users. Separately
+identified third-party materials retain their own licenses, which control
+those materials. These terms do not restrict rights granted independently
+by third-party copyright holders.
+
+5. Termination
+
+Your permissions under this license terminate if you breach its conditions.
+Termination does not affect any obligation to stop unauthorized commercial
+distribution or to preserve required notices.
+
+6. No warranty or liability
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. TO THE MAXIMUM EXTENT
+PERMITTED BY APPLICABLE LAW, THE AUTHORS AND COPYRIGHT HOLDERS ARE NOT LIABLE
+FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE SOFTWARE OR ITS
+USE, WHETHER IN CONTRACT, TORT, OR OTHERWISE.

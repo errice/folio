@@ -1,0 +1,39 @@
+:root{color-scheme:light}
+.theme-toggle{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:7px 10px;border:1px solid #dfe6ef;border-radius:7px;background:#f5f7fb;color:#526781;font-size:11px;min-height:34px;flex-shrink:0}
+.theme-toggle svg{width:17px;height:17px;flex-shrink:0}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0e1726;--ink:#e1e9f5;--muted:#a5b4ca;--line:#2a3b52;--green:#8cd9b8}
+[data-theme="dark"] body{background:var(--bg);color:var(--ink)}
+[data-theme="dark"] .sidebar{background:#101f35}
+[data-theme="dark"] :is(header,.panel,.stat,.detail-card,dialog,.database-message){background:#18263a;border-color:var(--line);color:var(--ink)}
+[data-theme="dark"] :is(.stat.featured,.report-stats .stat.featured){background:#203e65;border-color:#365579}
+[data-theme="dark"] .stats:has(>.stat-overview)>.stat-accounts{background:#263f65;border-color:#3d5d89}
+[data-theme="dark"] .stats:has(>.stat-overview)>.stat-investments{background:#20493f;border-color:#376858}
+[data-theme="dark"] .stats:has(>.stat-overview)>.stat-debts{background:#573238;border-color:#805057}
+[data-theme="dark"] .stats:has(>.stat-overview)>.stat:not(.featured) :is(.stat-label,.stat-foot){color:#cfdaea}
+[data-theme="dark"] .stats:has(>.stat-overview)>.stat:not(.featured) .stat-icon{background:#ffffff14;color:#d3e1f5}
+[data-theme="dark"] .stats:has(>.stat-overview)>.stat-debts .stat-foot .positive{color:#a1e4c4}
+[data-theme="dark"] :is(.negative,.danger,.stats:has(>.stat-overview)>.stat-debts .stat-foot .negative){color:#ffb7b7}
+[data-theme="dark"] :is(.stat-value,.detail-card .balance,.donut-center b,.chart-summary b,.report-top-name,.transaction-name,.account-info strong,.account-amount,.amount,.empty h2){color:#e1e9f5}
+[data-theme="dark"] :is(.stat-label,.stat-foot,.featured .stat-foot,.panel-sub,.page-heading p,.breadcrumb,.breadcrumb b,.local-status,.donut-center,.allocation-row b,.allocation-legend,.chart-legend-button>span,.legend,.settings-row p,.category-intro,.budget-numbers,.fx-equivalent,.fx-native-label,.report-note,.category-list p,.empty,footer,td){color:#aebed3}
+[data-theme="dark"] :is(input,select,.field,.secondary,.theme-toggle){background:#203149;border-color:#3a506e;color:#d6e2f2}
+[data-theme="dark"] input::placeholder{color:#9cacc3}
+[data-theme="dark"] :is(.stat-icon,.account-logo,.pill,.segmented,.progress,.largest-badge){background:#293d59;color:#b1caef}
+[data-theme="dark"] :is(.segmented button.active,.panel-bottom,th,.report-total td){background:#203149;color:#c2d2e8}
+[data-theme="dark"] :is(.demo-banner,.fx-panel,.savings-note,.insight,.transfer-estimate){background:#1b304e;border-color:#334b70;color:#b2c5e0}
+[data-theme="dark"] :is(.demo-banner b,.fx-status strong,.savings-note b,.insight b){color:#b4cff5}
+[data-theme="dark"] :is(.fx-status p,.fx-top>label,.fx-details,.fx-details a,.insight,.savings-note,.text-button,.overview-top-categories>div>span){color:#abc2e4}
+[data-theme="dark"] :is(.account-row,td,.detail-actions,.settings-row,.category-item){border-color:var(--line)}
+[data-theme="dark"] :is(.chart-legend-button:hover,.chart-legend-button:focus-visible,.category-tag:hover){background:#293d59}
+[data-theme="dark"] .chart text{fill:#aebed3}
+[data-theme="dark"] .chart line{stroke:#34455d}
+[data-theme="dark"] .interactive-donut>svg>circle{stroke:#2b3d55}
+[data-theme="dark"] .donut:after{background:#18263a}
+[data-theme="dark"] .database-overlay{background:#0e1726ed}
+[data-theme="dark"] dialog::backdrop{background:#030915a6}
+[data-theme="dark"] :is(.icon-button,.settings-row>svg){color:#b0c5e5}
+[data-theme="dark"] .positive{color:#8cd9b8}
+@media(max-width:550px){.theme-toggle{padding:7px;min-width:32px}.theme-toggle span{display:none}.header-right{gap:8px}}
+[data-theme="dark"] :is(#modal-body label,.category-icon-picker legend,.demo-banner button,.category-with-icon svg,.report-top-name>svg,.overview-spending-content h2>svg){color:#b3c7e5}
+[data-theme="dark"] .category-icon-option>span{background:#203149;border-color:#3a506e;color:#b3c7e5}
+[data-theme="dark"] .category-icon-option:hover>span{background:#293d59;border-color:#8baee8}
+[data-theme="dark"] .category-icon-option input:checked+span{background:#2a4670;border-color:#85a5ff;color:#e0eaff}

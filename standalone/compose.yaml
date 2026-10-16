@@ -1,0 +1,14 @@
+services:
+  folio:
+    build:
+      context: ..
+      dockerfile: standalone/Dockerfile
+    environment:
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN to your public HTTPS origin}
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - folio-data:/app/data
+    restart: unless-stopped
+volumes:
+  folio-data:

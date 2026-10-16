@@ -1,0 +1,15 @@
+{
+  "name": "folio-personal-finance",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A self-hosted personal finance dashboard with private SQLite workspaces.",
+  "type": "module",
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "Mr Chris (@errice)",
+  "repository": { "type": "git", "url": "https://github.com/errice/folio.git" },
+  "engines": { "node": ">=24.15.0" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env standalone/server.mjs",
+    "test": "node --test standalone/auth.test.mjs && node verify-cash-flow.cjs && node verify-currencies.cjs"
+  }
+}
