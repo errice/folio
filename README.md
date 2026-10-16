@@ -67,7 +67,7 @@ The avatar menu provides profile editing, password changes, and logout. A passwo
 
 Passwords are salted and hashed with scrypt. Session cookies are HttpOnly, use SameSite protection, and are Secure on HTTPS. Every financial request is scoped to the session's user; stale tabs cannot write into a newly signed-in account. Login attempts are limited. Financial records and passwords are not stored in browser storage.
 
-Email verification, password-reset emails, and an administrator dashboard are not implemented. Registration accepts an email address without verifying mailbox ownership. There is no configured email-delivery service. Read [security and data-handling notes](SECURITY.md) before a public deployment.
+The Cloudflare edition includes password recovery when a verified sender and email provider are connected; see its deployment guide. The Node edition does not include reset emails. Signup email verification and an administrator dashboard are not implemented. Registration accepts an email address without verifying mailbox ownership. Read [security and data-handling notes](SECURITY.md) before a public deployment.
 
 ## License: free to use; permission required to sell
 

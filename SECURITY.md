@@ -20,7 +20,7 @@ The Cloudflare Workers edition uses D1, browser-derived SCRAM-SHA-256 proofs wit
 
 Use HTTPS and a persistent disk. Run a single server instance for the SQLite file. Restrict access to the database and backups, and test restoration. The database file is not encrypted by this application.
 
-The app does not implement email verification, password recovery emails, MFA, or account administration. Do not advertise those capabilities. Email addresses are not proof of mailbox ownership. There has been no independent security audit.
+The Node edition does not implement password recovery emails. The Cloudflare edition includes a reset flow that requires a configured email provider and verified sender before it can deliver reset links. Both editions lack email verification during signup, MFA and account administration. Email addresses entered at signup are not proof of mailbox ownership. There has been no independent security audit.
 
 Behind a reverse proxy, application-level IP limits are conservatively shared because the server does not trust arbitrary forwarding headers. Review capacity and edge limits for your deployment.
 

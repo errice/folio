@@ -1,6 +1,7 @@
 import { randomBytes, timingSafeEqual, createHash, createHmac } from 'node:crypto';
 import { validateFinance, MAX_STATE_BYTES } from '../lib/finance-store.mjs';
-import { dashboard, auth } from './dist/templates.mjs';
+import { dashboard, auth, reset } from './dist/templates.mjs';
+import { sendResetEmail } from './reset-mail.mjs';
 
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const lifetime=7*24*60*60*1000;
@@ -74,6 +75,37 @@ export default {
    }
    if(!db)fail(503,'Database setup is not complete.');
    const user=token&&/^[A-Za-z0-9_-]{43}$/.test(token)?await stmt('SELECT u.id,u.email,u.name,u.auth_version FROM app_sessions s JOIN app_users u ON u.id=s.user_id AND u.auth_version=s.auth_version WHERE s.token_hash=? AND s.expires_at>?',hash(token),Date.now()).first():null;
+   if(path==='/forgot-password'||path==='/reset-password'){if(method!=='GET')fail(405,'Method not allowed.');return html(reset);}
+   if(path==='/api/auth/password-reset/request'){
+    if(method!=='POST')fail(405,'Method not allowed.');
+    if(!env.EMAIL_FROM||(!env.RESEND_API_KEY&&!env.RESET_MAILER))fail(503,'Password reset emails are not available yet. Please try again later.');
+    const input=await body(),email=typeof input?.email==='string'?input.email.trim().toLowerCase():'';
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254)fail(400,'Enter a valid email address.');
+    const ip=request.headers.get('CF-Connecting-IP')||'local';await limit('reset-ip:'+ip,10,3600000);await limit('reset-email:'+email,3,3600000);
+    const found=await stmt('SELECT id,email,auth_version FROM app_users WHERE email=?',email).first();
+    if(found){
+     const resetToken=randomBytes(32).toString('base64url'),resetHash=hash(resetToken);
+     await stmt('INSERT INTO app_password_resets(token_hash,user_id,auth_version,expires_at) VALUES(?,?,?,?)',resetHash,found.id,found.auth_version,Date.now()+900000).run();
+     const resetUrl=new URL('/reset-password',origin).href+'#token='+resetToken;
+     ctx.waitUntil(sendResetEmail(env,found.email,resetUrl).catch(async()=>{console.error('Folio password reset email could not be delivered.');await stmt('DELETE FROM app_password_resets WHERE token_hash=?',resetHash).run();}));
+    }
+    return json({message:'If an account matches that email, you’ll receive a password-reset link. Check your inbox and spam folder. The link expires in 15 minutes.'},202);
+   }
+   if(path==='/api/auth/password-reset/complete'){
+    if(method!=='POST')fail(405,'Method not allowed.');
+    await limit('reset-complete-ip:'+(request.headers.get('CF-Connecting-IP')||'local'),20,900000);
+    const input=await body();if(typeof input?.token!=='string'||!/^[A-Za-z0-9_-]{43}$/.test(input.token))fail(400,'This reset link is invalid or has expired. Request a new link.');
+    const resetHash=hash(input.token),record=await stmt('SELECT r.user_id,r.auth_version FROM app_password_resets r JOIN app_users u ON u.id=r.user_id AND u.auth_version=r.auth_version WHERE r.token_hash=? AND r.expires_at>?',resetHash,Date.now()).first();
+    if(!record)fail(400,'This reset link is invalid or has expired. Request a new link.');
+    const credential=credentialOf(input.credential),nextHash=JSON.stringify(credential);
+    const results=await db.batch([
+     stmt('UPDATE app_users SET password_hash=?,salt=?,auth_version=auth_version+1 WHERE id=? AND auth_version=? AND EXISTS(SELECT 1 FROM app_password_resets WHERE token_hash=? AND user_id=? AND auth_version=? AND expires_at>?)',nextHash,credential.salt,record.user_id,record.auth_version,resetHash,record.user_id,record.auth_version,Date.now()),
+     stmt('DELETE FROM app_sessions WHERE user_id=? AND auth_version<>(SELECT auth_version FROM app_users WHERE id=?)',record.user_id,record.user_id),
+     stmt('DELETE FROM app_password_resets WHERE user_id=? AND auth_version<=?',record.user_id,record.auth_version),
+     stmt('DELETE FROM app_challenges WHERE user_id=? AND auth_version<=?',record.user_id,record.auth_version)
+    ]);
+    if(!results[0].meta.changes)fail(400,'This reset link is invalid or has expired. Request a new link.');setCookie('',0);return json({ok:true});
+   }
    if(path==='/api/auth/challenge'){
     if(method!=='POST')fail(405,'Method not allowed.');const input=await body(),email=typeof input?.email==='string'?input.email.trim().toLowerCase():'';
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254||typeof input.nonce!=='string'||!/^[A-Za-z0-9+/]{32}$/.test(input.nonce)||!['login','password'].includes(input.purpose))fail(400,'Invalid sign-in request.');
@@ -143,5 +175,5 @@ export default {
    fail(404,'Not found.');
   }catch(error){const status=error.status||500;if(status===500)console.error('Folio runtime failure:',error.name,String(error.message).slice(0,250));if(status===429)headers.set('Retry-After','900');return json({error:status===500?'Something went wrong. Please try again.':error.message},status);}
  },
- async scheduled(event,env){await env.DB.batch([env.DB.prepare('DELETE FROM app_sessions WHERE expires_at<=?').bind(Date.now()),env.DB.prepare('DELETE FROM app_attempts WHERE expires_at<=?').bind(Date.now()),env.DB.prepare('DELETE FROM app_challenges WHERE expires_at<=?').bind(Date.now())]);}
+ async scheduled(event,env){await env.DB.batch([env.DB.prepare('DELETE FROM app_sessions WHERE expires_at<=?').bind(Date.now()),env.DB.prepare('DELETE FROM app_attempts WHERE expires_at<=?').bind(Date.now()),env.DB.prepare('DELETE FROM app_challenges WHERE expires_at<=?').bind(Date.now()),env.DB.prepare('DELETE FROM app_password_resets WHERE expires_at<=?').bind(Date.now())]);}
 };
