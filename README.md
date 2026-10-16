@@ -41,6 +41,8 @@ The default database is `data/folio.sqlite`. Keep it and its backups private. It
 
 ## Hosting
 
+For free Cloudflare Workers hosting with a D1 (SQLite) database and independent email/password registration, see the [Cloudflare deployment guide](cloudflare/README.md). The instructions below apply to the Node edition.
+
 The app needs a Node server, HTTPS, and persistent storage for SQLite. A Dockerfile and Compose configuration are included. See [deployment and migration instructions](standalone/README.md).
 
 Production configuration must include your external HTTPS origin, for example `PUBLIC_ORIGIN=https://finance.example.com`. Production startup rejects a missing HTTPS origin. `ALLOW_REGISTRATION=false` closes new registrations while allowing existing users to log in.

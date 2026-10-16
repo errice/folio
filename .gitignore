@@ -18,5 +18,7 @@ data/
 .openai/
 outputs/
 coverage/
+cloudflare/dist/
+wrangler.production.jsonc
 .DS_Store
 Thumbs.db

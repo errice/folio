@@ -4,6 +4,8 @@ This release includes an independently runnable email/password edition. It does 
 
 ## Built-in protections
 
+The Cloudflare Workers edition uses D1, PBKDF2-HMAC-SHA256 (600,000 iterations), and versioned sessions. The Node edition uses local SQLite and scrypt as described below. Credential databases are separate. See [Cloudflare deployment and security notes](cloudflare/README.md).
+
 - Per-user access is checked server-side using random session cookies, not a caller-supplied owner identifier.
 - Each financial request must match the account that opened its tab, protecting against accidental writes after switching users.
 - Passwords use a random 16-byte salt and scrypt with N=131072, r=8, p=1. Plaintext passwords are not saved.

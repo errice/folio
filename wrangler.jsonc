@@ -1,0 +1,13 @@
+{
+  "name": "folio-finance",
+  "main": "cloudflare/worker.mjs",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "build": {"command": "node cloudflare/build.mjs"},
+  "assets": {"directory": "cloudflare/dist/assets", "binding": "ASSETS", "run_worker_first": true},
+  "vars": {"ALLOW_REGISTRATION": "true"},
+  "triggers": {"crons": ["17 3 * * *"]},
+  "d1_databases": [{"binding": "DB", "database_name": "folio-finance", "database_id": "local-folio-development", "migrations_dir": "cloudflare/migrations"}],
+  "observability": {"enabled": false}
+}

@@ -1,0 +1,14 @@
+import { readFile, writeFile, mkdir, readdir, copyFile } from 'node:fs/promises';
+const root=new URL('../',import.meta.url),out=new URL('./dist/assets/',import.meta.url);
+await mkdir(out,{recursive:true});
+for(const name of await readdir(new URL('public/',root)))if(/^[a-zA-Z0-9-]+\.(css|js|svg|png)$/.test(name)&&!['app.js','database.js','account.js'].includes(name))await copyFile(new URL('public/'+name,root),new URL(name,out));
+for(const name of ['auth.css','auth.js','workspace.js'])await copyFile(new URL('standalone/'+name,root),new URL(name,out));
+let app=await readFile(new URL('public/app.js',root),'utf8');
+const initial="try{const raw=localStorage.getItem('folio-finance-v1');state=raw?validate(JSON.parse(raw)):sample();}catch{state=sample();}";
+if(!app.includes(initial))throw Error('Dashboard initialization changed; update the Cloudflare adapter.');
+app=app.replace(initial,'state=validate(window.folioBootstrap.state);').replace("localStorage.setItem('folio-finance-v1',JSON.stringify(state));",'');
+await writeFile(new URL('app.js',out),app);
+const dashboard=(await readFile(new URL('app/frontend.html',root),'utf8')).replace('<script src="app.js" defer>','<script src="/bootstrap.js" defer></script><script src="app.js" defer>').replace('src="database.js"','src="workspace.js"').replace('<script src="account.js" defer></script>','').replace('</head>','<link rel="stylesheet" href="/auth.css"></head>');
+const auth=await readFile(new URL('standalone/auth.html',root),'utf8');
+await writeFile(new URL('./dist/templates.mjs',import.meta.url),'export const dashboard='+JSON.stringify(dashboard)+';\nexport const auth='+JSON.stringify(auth)+';\n');
+console.log('Cloudflare dashboard and account pages prepared.');
