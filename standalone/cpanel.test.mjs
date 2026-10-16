@@ -1,0 +1,13 @@
+import { after } from 'node:test';
+import assert from 'node:assert/strict';
+import { createCpanelServer } from './cpanel.mjs';
+const origin='http://127.0.0.1:4185';
+const server=await createCpanelServer({origin,dbPath:':memory:'});
+await new Promise(resolve=>server.listen(4185,'127.0.0.1',resolve));
+after(()=>new Promise(resolve=>server.close(resolve)));
+process.env.FOLIO_TEST_URL=origin;
+const login=await fetch(origin+'/login');assert.equal(login.status,200);assert.match(await login.text(),/Forgot password/);
+assert.equal((await fetch(origin+'/auth.css')).status,200);
+assert.ok([401,404].includes((await fetch(origin+'/data/folio-cpanel.sqlite')).status));
+assert.ok([401,404].includes((await fetch(origin+'/app.cjs')).status));
+await import('../cloudflare/integration.test.mjs');
