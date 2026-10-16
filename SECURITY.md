@@ -8,6 +8,7 @@ This release includes an independently runnable email/password edition. It does 
 - Each financial request must match the account that opened its tab, protecting against accidental writes after switching users.
 - Passwords use a random 16-byte salt and scrypt with N=131072, r=8, p=1. Plaintext passwords are not saved.
 - Session tokens use 32 random bytes; only their SHA-256 hashes are stored in SQLite. Sessions expire after seven days and are revoked on sign-out.
+- Password changes require the current password, rotate the current session, and revoke all older sessions. Profile editing changes the name/nickname only.
 - HTTPS sessions use Secure, HttpOnly, SameSite cookies. JSON writes require an exact allowed origin. Production startup requires a configured HTTPS origin.
 - Authentication attempts have persistent limits, and simultaneous password-hashing operations are bounded.
 - Parameterized queries and server-side financial-data validation protect database operations. Conflicting saves are rejected instead of silently overwriting another revision.

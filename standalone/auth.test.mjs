@@ -60,6 +60,30 @@ test('independent accounts, private workspaces, and session protections',async()
   }finally{if(server?.listening)await stop();await rm(directory,{recursive:true,force:true});}
 });
 
+test('profile editing and password changes are authenticated and revoke old sessions',async()=>{
+  const origin='http://127.0.0.1:4188',server=await createFolioServer({dbPath:':memory:',origin});await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const base=`http://127.0.0.1:${server.address().port}`;
+  async function call(path,{method='GET',data,cookie,id}={}){const response=await fetch(base+path,{method,headers:{Origin:origin,...(data?{'Content-Type':'application/json'}:{}),...(cookie?{Cookie:cookie}:{}),...(id?{'X-Folio-User':id}:{})},body:data?JSON.stringify(data):undefined});return {status:response.status,data:await response.json(),cookie:response.headers.get('set-cookie')?.split(';')[0]};}
+  try{
+    const registered=await call('/api/auth/register',{method:'POST',data:{email:'profile@example.test',name:'Before',password:'Before password passphrase'}}),cookie=registered.cookie,id=registered.data.user.id;
+    const otherSession=await call('/api/auth/login',{method:'POST',data:{email:'profile@example.test',password:'Before password passphrase'}});
+    assert.equal((await call('/api/account/profile')).status,401);
+    assert.equal((await call('/api/account/profile',{method:'PUT',cookie,id:'another-user',data:{name:'Wrong owner'}})).status,401);
+    assert.equal((await call('/api/account/profile',{method:'PUT',cookie,id,data:{name:'   '}})).status,400);
+    const updated=await call('/api/account/profile',{method:'PUT',cookie,id,data:{name:'After',email:'hijack@example.test'}});assert.equal(updated.status,200);assert.equal(updated.data.user.name,'After');assert.equal(updated.data.user.email,'profile@example.test');
+    assert.equal((await call('/api/account/profile',{cookie,id})).data.user.name,'After');
+    assert.equal((await call('/api/account/password',{method:'POST',cookie,id,data:{currentPassword:'wrong password',newPassword:'After password passphrase'}})).status,400);
+    assert.equal((await call('/api/account/password',{method:'POST',cookie,id,data:{currentPassword:'Before password passphrase',newPassword:'short'}})).status,400);
+    assert.equal((await call('/api/account/password',{method:'POST',cookie,id,data:{currentPassword:'Before password passphrase',newPassword:'Before password passphrase'}})).status,400);
+    const changed=await call('/api/account/password',{method:'POST',cookie,id,data:{currentPassword:'Before password passphrase',newPassword:'After password passphrase'}});assert.equal(changed.status,200);assert.ok(changed.cookie);assert.notEqual(changed.cookie,cookie);
+    assert.equal((await call('/api/auth/me',{cookie})).status,401);assert.equal((await call('/api/auth/me',{cookie:otherSession.cookie})).status,401);
+    assert.equal((await call('/api/account/profile',{cookie:changed.cookie,id})).data.user.name,'After');
+    assert.equal((await call('/api/auth/login',{method:'POST',data:{email:'profile@example.test',password:'Before password passphrase'}})).status,401);
+    const relogin=await call('/api/auth/login',{method:'POST',data:{email:'profile@example.test',password:'After password passphrase'}});assert.equal(relogin.status,200);
+    assert.equal((await call('/api/auth/logout',{method:'POST',cookie:relogin.cookie,data:{}})).status,200);assert.equal((await call('/api/auth/me',{cookie:relogin.cookie})).status,401);
+  }finally{await new Promise(resolve=>server.close(resolve));}
+});
+
 test('HTTPS cookie and closed registration',async()=>{
   const server=await createFolioServer({dbPath:':memory:',origin:'https://folio.example',registrationEnabled:false});await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   try{const response=await fetch(`http://127.0.0.1:${server.address().port}/api/auth/register`,{method:'POST',headers:{Origin:'https://folio.example','Content-Type':'application/json'},body:'{}'});assert.equal(response.status,403);assert.match(response.headers.get('strict-transport-security'),/max-age/);}finally{await new Promise(resolve=>server.close(resolve));}

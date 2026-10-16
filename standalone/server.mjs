@@ -95,6 +95,7 @@ export async function createFolioServer({dbPath=resolve(root,'data/folio.sqlite'
         const found=db.prepare('SELECT * FROM app_users WHERE email=?').get(email);
         const candidate=await passwordHash(input.password,found?.salt||'00000000000000000000000000000000');
         if(!found||!timingSafeEqual(candidate,Buffer.from(found.password_hash,'hex')))fail(401,'Email or password is incorrect.');
+        if(db.prepare('SELECT password_hash FROM app_users WHERE id=?').get(found.id)?.password_hash!==found.password_hash)fail(401,'Your password changed. Sign in again.');
         setSession(request,response,found.id);return json(response,{user:safeUser(found)});
       }
       if(path==='/api/auth/logout'){
@@ -106,6 +107,36 @@ export async function createFolioServer({dbPath=resolve(root,'data/folio.sqlite'
         response.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});return response.end(await readFile(resolve(root,'standalone/auth.html')));
       }
       if(path==='/api/auth/me'){if(method!=='GET')fail(405,'Method not allowed.');if(!user)fail(401,'Please sign in.');return json(response,{user:safeUser(user)});}
+      if(path==='/api/account/profile'||path==='/api/account/password'){
+        if(!user)fail(401,'Your session has ended. Please sign in again.');
+        if(request.headers['x-folio-user']!==user.id)fail(401,'The signed-in account changed. Reload this tab before continuing.');
+        if(path.endsWith('profile')){
+          if(method==='GET')return json(response,{user:safeUser(user),canChangePassword:true});
+          if(method!=='PUT')fail(405,'Method not allowed.');
+          const input=await body(request),name=typeof input?.name==='string'?input.name.trim():'';
+          if(!name||name.length>50||/[\u0000-\u001f\u007f]/.test(name))fail(400,'Enter a name or nickname up to 50 characters.');
+          db.prepare('UPDATE app_users SET name=? WHERE id=?').run(name,user.id);
+          return json(response,{user:{...safeUser(user),name}});
+        }
+        if(method!=='POST')fail(405,'Method not allowed.');
+        limit('password:'+user.id,6,15*60*1000);
+        const input=await body(request);
+        if(typeof input?.currentPassword!=='string'||!input.currentPassword||input.currentPassword.length>128)fail(400,'Enter your current password.');
+        if(typeof input.newPassword!=='string'||input.newPassword.length<12||input.newPassword.length>128)fail(400,'Use a new password between 12 and 128 characters.');
+        if(input.currentPassword===input.newPassword)fail(400,'Choose a password different from your current password.');
+        const found=db.prepare('SELECT password_hash,salt FROM app_users WHERE id=?').get(user.id);
+        const candidate=await passwordHash(input.currentPassword,found.salt);
+        if(!timingSafeEqual(candidate,Buffer.from(found.password_hash,'hex')))fail(400,'Your current password is incorrect.');
+        const salt=randomBytes(16).toString('hex'),nextHash=(await passwordHash(input.newPassword,salt)).toString('hex');
+        db.exec('BEGIN IMMEDIATE');
+        try{
+          const updated=db.prepare('UPDATE app_users SET password_hash=?,salt=? WHERE id=? AND password_hash=?').run(nextHash,salt,user.id,found.password_hash);
+          if(!updated.changes)fail(409,'Your password changed in another session. Sign in again.');
+          db.prepare('DELETE FROM app_sessions WHERE user_id=?').run(user.id);
+          setSession(request,response,user.id);db.exec('COMMIT');
+        }catch(error){db.exec('ROLLBACK');throw error;}
+        return json(response,{ok:true,user:safeUser(user)});
+      }
       if(path==='/api/state'){
         if(!user)fail(401,'Your session has ended. Please sign in again.');
         if(request.headers['x-folio-user']!==user.id)fail(401,'The signed-in account changed. Reload this tab before continuing.');

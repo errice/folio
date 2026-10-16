@@ -2,7 +2,6 @@
   let revision=window.folioBootstrap.revision,pending=null,running=false,error=null;
   const user=window.folioBootstrap.user;
   const banner=document.createElement('div');banner.className='auth-sync-banner';banner.hidden=true;banner.setAttribute('role','alert');document.querySelector('main').prepend(banner);
-  const logout=document.createElement('button');logout.type='button';logout.className='secondary auth-signout';logout.textContent='Sign out';document.querySelector('.header-right').append(logout);
   const baseRender=render;
   function paint(){
     const indicator=document.querySelector('.local-status');
@@ -31,12 +30,22 @@
     if(running||error||!pending)return;running=true;paint();
     try{while(pending){const payload=pending;pending=null;try{const result=await request('PUT',{state:JSON.parse(payload),revision});revision=result.revision;}catch(e){pending??=payload;throw e;}}}catch(e){error=e;}finally{running=false;paint();}
   }
-  window.folioDatabase={save(data){pending=JSON.stringify(data);flush();}};
-  logout.addEventListener('click',async()=>{
-    if(pending||running){alert('Please save your changes or export a backup before signing out.');return;}
-    logout.disabled=true;
-    try{const response=await fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'});if(!response.ok)throw Error();try{localStorage.setItem('folio-auth-change',String(Date.now())+Math.random());}catch{}state=null;window.folioBootstrap=null;location.replace('/login');}catch{logout.disabled=false;toast('Unable to sign out. Please try again.');}
-  });
+  window.folioDatabase={save(data){pending=JSON.stringify(data);flush();},hasUnsavedChanges(){return Boolean(pending||running);}};
+  async function accountRequest(path,method='GET',body){
+    const response=await fetch(path,{method,credentials:'same-origin',cache:'no-store',headers:{'X-Folio-User':user.id,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(30000)});
+    const data=await response.json();if(!response.ok)throw Error(data.error||'Unable to update your account.');return data;
+  }
+  window.folioAccount={
+    getProfile(){return accountRequest('/api/account/profile');},
+    async updateProfile(name){const result=await accountRequest('/api/account/profile','PUT',{name});Object.assign(user,result.user);render();return result;},
+    async changePassword(currentPassword,newPassword){if(pending||running)throw Error('Please save your financial changes before changing your password.');return accountRequest('/api/account/password','POST',{currentPassword,newPassword});},
+    async logout(){
+      if(pending||running)throw Error('Please save your changes or export a backup before logging out.');
+      await accountRequest('/api/auth/logout','POST',{});
+      try{localStorage.setItem('folio-auth-change',String(Date.now())+Math.random());}catch{}
+      state=null;window.folioBootstrap=null;location.replace('/login');
+    }
+  };
   window.addEventListener('storage',event=>{
     if(event.key!=='folio-auth-change')return;
     if(pending||running){error={status:401,message:'The signed-in account changed. Export your unsaved backup before signing in again.'};paint();return;}

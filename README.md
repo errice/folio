@@ -59,6 +59,8 @@ The suite checks account registration, credential handling, sessions, database p
 
 ## Account features and current limitations
 
+The avatar menu provides profile editing, password changes, and logout. A password change requires the current password, rotates the current session, and revokes other sessions. Your sign-in email is read-only.
+
 Passwords are salted and hashed with scrypt. Session cookies are HttpOnly, use SameSite protection, and are Secure on HTTPS. Every financial request is scoped to the session's user; stale tabs cannot write into a newly signed-in account. Login attempts are limited. Financial records and passwords are not stored in browser storage.
 
 Email verification, password-reset emails, and an administrator dashboard are not implemented. Registration accepts an email address without verifying mailbox ownership. There is no configured email-delivery service. Read [security and data-handling notes](SECURITY.md) before a public deployment.

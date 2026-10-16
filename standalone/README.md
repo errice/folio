@@ -46,6 +46,8 @@ On the current hosted Folio, use Settings → Export data. On this edition, crea
 
 Passwords use a unique 16-byte random salt and Node's scrypt (`N=131072, r=8, p=1`), with constant-time hash comparisons. Session cookies contain 32-byte random tokens; only token hashes are stored in SQLite. Sessions expire after seven days and are revoked on sign-out. Login and registration attempts have persistent limits, and expensive password computations have bounded concurrency. Every read/write derives ownership from the session. Requests also bind to the tab's signed-in account so a stale tab cannot accidentally overwrite another account after switching users. Financial records and passwords are not saved to browser storage; unsaved edits remain in the current tab with retry/export options. The color theme, public exchange rates, and an account-change notification timestamp can still use browser storage.
 
+The avatar menu lets users edit their name/nickname, change their password by supplying the current password, and log out. Changing a password rotates the current session and revokes other signed-in sessions. The sign-in email is read-only.
+
 Registration does not verify mailbox ownership. Password reset emails, email verification, and account administration are not implemented; no email-sending service is configured. Do not promise those features to users. SQLite data is protected by server/filesystem access, not database encryption; protect disk and backups accordingly.
 
 For consistent backups while the server is running, use SQLite's backup API. Alternatively, stop the app cleanly before copying the database; copying only the main file while WAL writes are active is not a complete backup. Store backups privately and test recovery.
