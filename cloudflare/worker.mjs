@@ -1,15 +1,18 @@
-import { pbkdf2, randomBytes, timingSafeEqual, createHash } from 'node:crypto';
-import { promisify } from 'node:util';
+import { randomBytes, timingSafeEqual, createHash, createHmac } from 'node:crypto';
 import { validateFinance, MAX_STATE_BYTES } from '../lib/finance-store.mjs';
 import { dashboard, auth } from './dist/templates.mjs';
 
-const derive=promisify(pbkdf2),hash=value=>createHash('sha256').update(value).digest('hex');
-const lifetime=7*24*60*60*1000,iterations=600000;
+const hash=value=>createHash('sha256').update(value).digest('hex');
+const lifetime=7*24*60*60*1000;
 const fail=(status,message)=>{throw Object.assign(new Error(message),{status});};
 const safeUser=u=>({id:u.id,email:u.email,name:u.name});
 const emptyWorkspace=()=>({version:2,currency:'USD',demo:false,accounts:[],transactions:[],budgets:[],categories:[{name:'Salary',type:'income',icon:'income'},{name:'Other income',type:'income',icon:'work'},{name:'Housing',type:'expense',icon:'home'},{name:'Groceries',type:'expense',icon:'groceries'},{name:'Dining',type:'expense',icon:'dining'},{name:'Shopping',type:'expense',icon:'shopping'},{name:'Transport',type:'expense',icon:'transport'},{name:'Utilities',type:'expense',icon:'utilities'},{name:'Health',type:'expense',icon:'health'},{name:'Other',type:'expense',icon:'other'}]});
 const nameOf=value=>{const n=typeof value==='string'?value.trim():'';if(!n||n.length>50||/[\u0000-\u001f\u007f]/.test(n))fail(400,'Enter a name or nickname up to 50 characters.');return n;};
-const passwordHash=(password,salt)=>derive(password,salt,iterations,32,'sha256');
+const mac=(key,message)=>createHmac('sha256',Buffer.from(key,'base64')).update(message).digest();
+function credentialOf(value){
+ if(value?.scheme!=='scram-sha-256'||value.iterations!==600000||!/^([A-Za-z0-9+/]{22}==)$/.test(value.salt)||!/^([A-Za-z0-9+/]{43}=)$/.test(value.storedKey)||!/^([A-Za-z0-9+/]{43}=)$/.test(value.serverKey))fail(400,'Invalid password verifier. Reload and try again.');
+ return {scheme:value.scheme,iterations:600000,salt:value.salt,storedKey:value.storedKey,serverKey:value.serverKey};
+}
 let ratesCache=null,ratesPending=null;
 
 export default {
@@ -48,6 +51,17 @@ export default {
    ]);
    if(!result[1].meta.changes)fail(401,'Your password changed. Sign in again.');setCookie(next);
   }
+  async function verifyProof(input,purpose,expectedUser){
+   if(typeof input?.challengeId!=='string'||input.challengeId.length>50||typeof input.proof!=='string'||!/^([A-Za-z0-9+/]{43}=)$/.test(input.proof))fail(400,'Invalid sign-in proof.');
+   const challenge=await stmt('DELETE FROM app_challenges WHERE id=? RETURNING *',input.challengeId).first();
+   if(!challenge||challenge.expires_at<=Date.now()||challenge.purpose!==purpose||(purpose==='password'&&(challenge.user_id!==expectedUser?.id||challenge.session_hash!==hash(token||''))))fail(401,'Your sign-in challenge expired. Please try again.');
+   const found=challenge.user_id?await stmt('SELECT * FROM app_users WHERE id=?',challenge.user_id).first():null;
+   if(!found||found.auth_version!==challenge.auth_version)fail(purpose==='password'?400:401,purpose==='password'?'Your current password is incorrect.':'Email or password is incorrect.');
+   const verifier=credentialOf(JSON.parse(found.password_hash)),message=challenge.client_first+','+challenge.server_first+',c=biws,r='+challenge.nonce;
+   const signature=mac(verifier.storedKey,message),proof=Buffer.from(input.proof,'base64'),clientKey=Buffer.from(proof.map((v,i)=>v^signature[i]));
+   if(!timingSafeEqual(createHash('sha256').update(clientKey).digest(),Buffer.from(verifier.storedKey,'base64')))fail(purpose==='password'?400:401,purpose==='password'?'Your current password is incorrect.':'Email or password is incorrect.');
+   return {found,serverSignature:mac(verifier.serverKey,message).toString('base64')};
+  }
   try{
    if(!['GET','POST','PUT','HEAD'].includes(method))fail(405,'Method not allowed.');
    // PUBLIC_ORIGIN pins the deployment; same-origin protection also covers preview hosts.
@@ -60,6 +74,18 @@ export default {
    }
    if(!db)fail(503,'Database setup is not complete.');
    const user=token&&/^[A-Za-z0-9_-]{43}$/.test(token)?await stmt('SELECT u.id,u.email,u.name,u.auth_version FROM app_sessions s JOIN app_users u ON u.id=s.user_id AND u.auth_version=s.auth_version WHERE s.token_hash=? AND s.expires_at>?',hash(token),Date.now()).first():null;
+   if(path==='/api/auth/challenge'){
+    if(method!=='POST')fail(405,'Method not allowed.');const input=await body(),email=typeof input?.email==='string'?input.email.trim().toLowerCase():'';
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254||typeof input.nonce!=='string'||!/^[A-Za-z0-9+/]{32}$/.test(input.nonce)||!['login','password'].includes(input.purpose))fail(400,'Invalid sign-in request.');
+    const ip=request.headers.get('CF-Connecting-IP')||'local';await limit('challenge-ip:'+ip,40,900000);await limit('challenge-email:'+email,10,900000);
+    if(input.purpose==='password'&&(!user||user.email!==email||request.headers.get('X-Folio-User')!==user.id))fail(401,'Please sign in again.');
+    const found=await stmt('SELECT * FROM app_users WHERE email=?',email).first();
+    const verifier=found?credentialOf(JSON.parse(found.password_hash)):null;
+    const salt=verifier?.salt||randomBytes(16).toString('base64'),nonce=input.nonce+randomBytes(24).toString('base64'),id=crypto.randomUUID();
+    const clientFirst='n='+email.replace(/=/g,'=3D').replace(/,/g,'=2C')+',r='+input.nonce,serverFirst=`r=${nonce},s=${salt},i=600000`;
+    await stmt('INSERT INTO app_challenges(id,user_id,auth_version,purpose,session_hash,client_first,server_first,nonce,expires_at) VALUES(?,?,?,?,?,?,?,?,?)',id,found?.id||null,found?.auth_version||0,input.purpose,input.purpose==='password'?hash(token):'',clientFirst,serverFirst,nonce,Date.now()+120000).run();
+    return json({id,salt,nonce,iterations:600000,clientFirst,serverFirst});
+   }
    if(path==='/api/auth/register'||path==='/api/auth/login'){
     if(method!=='POST')fail(405,'Method not allowed.');
     const registering=path.endsWith('register');if(registering&&env.ALLOW_REGISTRATION==='false')fail(403,'New registrations are currently closed.');
@@ -67,17 +93,14 @@ export default {
     const ip=request.headers.get('CF-Connecting-IP')||'local';await limit('ip:'+ip,40,900000);if(registering)await limit('register:'+ip,5,3600000);
     const input=await body(),email=typeof input?.email==='string'?input.email.trim().toLowerCase():'';
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254)fail(400,'Enter a valid email address.');
-    if(typeof input.password!=='string'||input.password.length>128||input.password.length<(registering?12:1))fail(400,registering?'Use a password between 12 and 128 characters.':'Email or password is incorrect.');
     await limit('email:'+email,10,900000);
     if(registering){
-     const name=nameOf(input.name),salt=randomBytes(16).toString('hex'),password_hash=(await passwordHash(input.password,salt)).toString('hex'),id=crypto.randomUUID(),now=new Date().toISOString();
+     const name=nameOf(input.name),credential=credentialOf(input.credential),salt=credential.salt,password_hash=JSON.stringify(credential),id=crypto.randomUUID(),now=new Date().toISOString();
      try{await db.batch([stmt('INSERT INTO app_users(id,email,name,password_hash,salt,created_at) VALUES(?,?,?,?,?,?)',id,email,name,password_hash,salt,now),stmt('INSERT INTO app_workspaces(user_id,data_json,revision,updated_at) VALUES(?,?,1,?)',id,validateFinance(emptyWorkspace()),now)]);}catch(error){if(/UNIQUE/.test(error.message))fail(409,'Unable to create this account. Try signing in with this email.');throw error;}
      await newSession({id},password_hash);return json({user:{id,email,name}},201);
     }
-    const found=await stmt('SELECT * FROM app_users WHERE email=?',email).first();
-    const candidate=await passwordHash(input.password,found?.salt||'00000000000000000000000000000000');
-    if(!found||!timingSafeEqual(candidate,Buffer.from(found.password_hash,'hex')))fail(401,'Email or password is incorrect.');
-    await newSession(found,found.password_hash);return json({user:safeUser(found)});
+    const {found,serverSignature}=await verifyProof(input,'login');if(found.email!==email)fail(401,'Email or password is incorrect.');
+    await newSession(found,found.password_hash);return json({user:safeUser(found),serverSignature});
    }
    if(path==='/api/auth/logout'){if(method!=='POST')fail(405,'Method not allowed.');await revoke();setCookie('',0);return json({ok:true});}
    if(path==='/login'||path==='/register'){if(method!=='GET')fail(405,'Method not allowed.');return user?redirect('/'):html(auth);}
@@ -91,18 +114,14 @@ export default {
    }
    if(path==='/api/account/password'){
     if(method!=='POST')fail(405,'Method not allowed.');await limit('password:'+user.id,6,900000);const input=await body();
-    if(typeof input?.currentPassword!=='string'||!input.currentPassword||input.currentPassword.length>128)fail(400,'Enter your current password.');
-    if(typeof input.newPassword!=='string'||input.newPassword.length<12||input.newPassword.length>128)fail(400,'Use a new password between 12 and 128 characters.');
-    if(input.currentPassword===input.newPassword)fail(400,'Choose a password different from your current password.');
-    const found=await stmt('SELECT password_hash,salt,auth_version FROM app_users WHERE id=?',user.id).first();
-    if(!timingSafeEqual(await passwordHash(input.currentPassword,found.salt),Buffer.from(found.password_hash,'hex')))fail(400,'Your current password is incorrect.');
-    const salt=randomBytes(16).toString('hex'),nextHash=(await passwordHash(input.newPassword,salt)).toString('hex'),next=randomBytes(32).toString('base64url');
+    const {found,serverSignature}=await verifyProof(input,'password',user),credential=credentialOf(input.credential);
+    const salt=credential.salt,nextHash=JSON.stringify(credential),next=randomBytes(32).toString('base64url');
     const results=await db.batch([
      stmt('UPDATE app_users SET password_hash=?,salt=?,auth_version=auth_version+1 WHERE id=? AND password_hash=? AND auth_version=?',nextHash,salt,user.id,found.password_hash,found.auth_version),
      stmt('INSERT INTO app_sessions(token_hash,user_id,auth_version,expires_at) SELECT ?,id,auth_version,? FROM app_users WHERE id=? AND password_hash=? AND auth_version=?',hash(next),Date.now()+lifetime,user.id,nextHash,found.auth_version+1),
      stmt('DELETE FROM app_sessions WHERE user_id=? AND auth_version<>(SELECT auth_version FROM app_users WHERE id=?)',user.id,user.id)
     ]);
-    if(!results[0].meta.changes)fail(409,'Your password changed in another session. Sign in again.');setCookie(next);return json({ok:true,user:safeUser(user)});
+    if(!results[0].meta.changes)fail(409,'Your password changed in another session. Sign in again.');setCookie(next);return json({ok:true,user:safeUser(user),serverSignature});
    }
    if(path==='/api/state'){
     if(method==='GET')return json(await workspace(user.id));if(method!=='PUT')fail(405,'Method not allowed.');const input=await body(MAX_STATE_BYTES+10000);
@@ -122,7 +141,7 @@ export default {
    }
    if(['/app.js','/workspace.js'].includes(path)&&['GET','HEAD'].includes(method)){const asset=await env.ASSETS.fetch(request);const merged=new Headers(asset.headers);for(const [key,value] of headers)merged.set(key,value);return new Response(asset.body,{status:asset.status,headers:merged});}
    fail(404,'Not found.');
-  }catch(error){const status=error.status||500;if(status===429)headers.set('Retry-After','900');return json({error:status===500?'Something went wrong. Please try again.':error.message},status);}
+  }catch(error){const status=error.status||500;if(status===500)console.error('Folio runtime failure:',error.name,String(error.message).slice(0,250));if(status===429)headers.set('Retry-After','900');return json({error:status===500?'Something went wrong. Please try again.':error.message},status);}
  },
- async scheduled(event,env){await env.DB.batch([env.DB.prepare('DELETE FROM app_sessions WHERE expires_at<=?').bind(Date.now()),env.DB.prepare('DELETE FROM app_attempts WHERE expires_at<=?').bind(Date.now())]);}
+ async scheduled(event,env){await env.DB.batch([env.DB.prepare('DELETE FROM app_sessions WHERE expires_at<=?').bind(Date.now()),env.DB.prepare('DELETE FROM app_attempts WHERE expires_at<=?').bind(Date.now()),env.DB.prepare('DELETE FROM app_challenges WHERE expires_at<=?').bind(Date.now())]);}
 };

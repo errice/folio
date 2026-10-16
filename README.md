@@ -41,6 +41,8 @@ The default database is `data/folio.sqlite`. Keep it and its backups private. It
 
 ## Hosting
 
+The live email/password edition is available at [Folio on Cloudflare](https://folio-finance.cvnbaze.workers.dev/). Choose **Create account** to open your own private workspace. To move records from the original ChatGPT-hosted edition, export from its Settings and import after signing in to your new account.
+
 For free Cloudflare Workers hosting with a D1 (SQLite) database and independent email/password registration, see the [Cloudflare deployment guide](cloudflare/README.md). The instructions below apply to the Node edition.
 
 The app needs a Node server, HTTPS, and persistent storage for SQLite. A Dockerfile and Compose configuration are included. See [deployment and migration instructions](standalone/README.md).
