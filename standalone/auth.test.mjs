@@ -24,14 +24,14 @@ test('independent accounts, private workspaces, and session protections',async()
     assert.equal((await call('/api/auth/register',{method:'POST',data:{email:'a@example.test',name:'A',password:'long test password'},requestOrigin:'https://other.example'})).status,403);
     assert.equal((await call('/api/auth/register',{method:'POST',data:{email:'a@example.test',name:'A',password:'short'}})).status,400);
     assert.equal((await call('/api/auth/login',{method:'POST',data:null})).status,400);
-    const alice=await call('/api/auth/register',{method:'POST',data:{email:'Alice@Example.test ',name:'Alice',password:'Alice test passphrase 123'}});
+    const alice=await call('/api/auth/register',{method:'POST',data:{email:'Alice@Example.test ',name:'Alice',password:'sunshine'}});
     assert.equal(alice.status,201);assert.equal(alice.json.user.email,'alice@example.test');assert.ok(alice.cookie);assert.match(alice.headers.get('set-cookie'),/HttpOnly/);assert.match(alice.headers.get('set-cookie'),/SameSite=Lax/);
     assert.deepEqual(Object.keys(alice.json.user).sort(),['email','id','name']);
     const bob=await call('/api/auth/register',{method:'POST',data:{email:'bob@example.test',name:'<img src=x onerror=alert(1)>',password:'Bob test passphrase 123'}});assert.equal(bob.status,201);
     const duplicate=await call('/api/auth/register',{method:'POST',data:{email:'ALICE@example.test',name:'Fake Alice',password:'Another passphrase 123'}});assert.equal(duplicate.status,409);
     const inspect=new DatabaseSync(dbPath);
     const stored=inspect.prepare('SELECT * FROM app_users WHERE id=?').get(alice.json.user.id);
-    assert.notEqual(stored.password_hash,'Alice test passphrase 123');assert.equal(stored.password_hash.length,128);assert.equal(stored.salt.length,32);
+    assert.notEqual(stored.password_hash,'sunshine');assert.equal(stored.password_hash.length,128);assert.equal(stored.salt.length,32);
     assert.equal(inspect.prepare('SELECT token_hash FROM app_sessions WHERE user_id=?').get(stored.id).token_hash.length,64);
     const initial=await call('/api/state',{cookie:alice.cookie});assert.equal(initial.json.state.demo,false);assert.equal(initial.json.state.accounts.length,0);
     const finance=initial.json.state;finance.accounts.push({id:'private-alice',type:'bank',name:'Alice private bank',institution:'Test',balance:12345,currency:'USD'});
@@ -47,14 +47,14 @@ test('independent accounts, private workspaces, and session protections',async()
     const shell=await call('/',{cookie:alice.cookie});assert.ok(shell.text.includes('workspace.js'));assert.ok(!shell.text.includes('src="database.js"'));
     assert.match(shell.headers.get('content-security-policy'),/frame-ancestors 'none'/);assert.equal(shell.headers.get('cache-control'),'no-store');
     assert.equal((await call('/api/auth/login',{method:'POST',data:{email:'alice@example.test',password:'incorrect password'}})).status,401);
-    const loggedIn=await call('/api/auth/login',{method:'POST',data:{email:'alice@example.test',password:'Alice test passphrase 123'}});assert.equal(loggedIn.status,200);assert.notEqual(loggedIn.cookie,alice.cookie);
+    const loggedIn=await call('/api/auth/login',{method:'POST',data:{email:'alice@example.test',password:'sunshine'}});assert.equal(loggedIn.status,200);assert.notEqual(loggedIn.cookie,alice.cookie);
     assert.equal((await call('/api/auth/logout',{method:'POST',cookie:loggedIn.cookie,data:{}})).status,200);
     assert.equal((await call('/api/state',{cookie:loggedIn.cookie})).status,401);
     inspect.prepare('UPDATE app_sessions SET expires_at=0 WHERE user_id=?').run(alice.json.user.id);
     assert.equal((await call('/api/state',{cookie:alice.cookie})).status,401);
     inspect.close();await stop();await start();
     assert.equal((await call('/api/auth/me',{cookie:bob.cookie})).json.user.email,'bob@example.test');
-    const restored=await call('/api/auth/login',{method:'POST',data:{email:'alice@example.test',password:'Alice test passphrase 123'}});assert.equal((await call('/api/state',{cookie:restored.cookie})).json.state.accounts[0].balance,12345);
+    const restored=await call('/api/auth/login',{method:'POST',data:{email:'alice@example.test',password:'sunshine'}});assert.equal((await call('/api/state',{cookie:restored.cookie})).json.state.accounts[0].balance,12345);
     for(let i=0;i<10;i++)await call('/api/auth/login',{method:'POST',data:{email:'nobody@example.test',password:'incorrect password'}});
     const limited=await call('/api/auth/login',{method:'POST',data:{email:'nobody@example.test',password:'incorrect password'}});assert.equal(limited.status,429);assert.equal(limited.headers.get('retry-after'),'900');
   }finally{if(server?.listening)await stop();await rm(directory,{recursive:true,force:true});}

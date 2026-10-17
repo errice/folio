@@ -10,7 +10,7 @@ From the repository root:
 node standalone/server.mjs
 ```
 
-Open http://127.0.0.1:4175/register. Registration asks for email, name/nickname, and password (12–128 characters). Each account starts with zero balances, no transactions, and default categories. Sign in with email/password; use Sign out in the top bar. No sample finances or records from another browser account are imported automatically.
+Open http://127.0.0.1:4175/register. Registration asks for email, name/nickname, and password (8–128 characters; no required mix of capitals, numbers, or symbols). Each account starts with zero balances, no transactions, and default categories. Sign in with email/password; use Sign out in the top bar. No sample finances or records from another browser account are imported automatically.
 
 By default data is in `data/folio.sqlite`, excluded from Git. Do not commit this file, SQLite WAL files, database backups, or user credentials.
 

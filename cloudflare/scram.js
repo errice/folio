@@ -11,7 +11,7 @@
   const clientKey=await hmac(salted,'Client Key');return {clientKey,storedKey:await digest(clientKey),serverKey:await hmac(salted,'Server Key')};
  }
  async function credentials(password){
-  if(typeof password!=='string'||password.length<12||password.length>128)throw Error('Use a password between 12 and 128 characters.');
+  if(typeof password!=='string'||password.length<8||password.length>128)throw Error('Use a password between 8 and 128 characters.');
   const salt=b64(crypto.getRandomValues(new Uint8Array(16))),k=await keys(password,salt,600000);
   return {scheme:'scram-sha-256',iterations:600000,salt,storedKey:b64(k.storedKey),serverKey:b64(k.serverKey)};
  }

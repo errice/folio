@@ -21,7 +21,7 @@ test('email reset links are private, single use, expire, preserve finances, and 
   const response=await worker.fetch(request,customEnv,{waitUntil:promise=>jobs.push(promise)});await Promise.all(jobs.splice(0));let data;try{data=await response.json();}catch{}return {status:response.status,data,cookie:response.headers.get('set-cookie')?.split(';')[0]};
  }
  async function login(password){const nonce=btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(24)))),c=await call('/api/auth/challenge',{body:{email:'reset-qa@example.test',nonce,purpose:'login'}}),p=await folioScram.proofFor(password,c.data);return call('/api/auth/login',{body:{email:'reset-qa@example.test',challengeId:c.data.id,proof:p.proof}});}
- const oldPassword='Temporary-original-password-42',newPassword='Temporary-replacement-password-43';
+ const oldPassword='sunshine',newPassword='bluebird';
  const registered=await call('/api/auth/register',{body:{email:'reset-qa@example.test',name:'Reset QA',credential:await folioScram.credentials(oldPassword)}});assert.equal(registered.status,201);
  const id=registered.data.user.id;const before=db.prepare('SELECT data_json FROM app_workspaces WHERE user_id=?').get(id).data_json;
  assert.equal((await call('/api/auth/password-reset/request',{body:{email:'reset-qa@example.test'},customEnv:{...env,EMAIL_FROM:undefined,RESET_MAILER:undefined}})).status,503);

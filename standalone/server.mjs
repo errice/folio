@@ -81,7 +81,7 @@ export async function createFolioServer({dbPath=resolve(root,'data/folio.sqlite'
         if(registering)limit('register:'+ip,5,60*60*1000);
         const input=await body(request),email=typeof input?.email==='string'?input.email.trim().toLowerCase():'';
         if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254)fail(400,'Enter a valid email address.');
-        if(typeof input?.password!=='string'||input.password.length>128||input.password.length<(registering?12:1))fail(400,registering?'Use a password between 12 and 128 characters.':'Email or password is incorrect.');
+        if(typeof input?.password!=='string'||input.password.length>128||input.password.length<(registering?8:1))fail(400,registering?'Use a password between 8 and 128 characters.':'Email or password is incorrect.');
         limit('email:'+email,10,15*60*1000);
         if(registering){
           const name=typeof input.name==='string'?input.name.trim():'';
@@ -122,7 +122,7 @@ export async function createFolioServer({dbPath=resolve(root,'data/folio.sqlite'
         limit('password:'+user.id,6,15*60*1000);
         const input=await body(request);
         if(typeof input?.currentPassword!=='string'||!input.currentPassword||input.currentPassword.length>128)fail(400,'Enter your current password.');
-        if(typeof input.newPassword!=='string'||input.newPassword.length<12||input.newPassword.length>128)fail(400,'Use a new password between 12 and 128 characters.');
+        if(typeof input.newPassword!=='string'||input.newPassword.length<8||input.newPassword.length>128)fail(400,'Use a new password between 8 and 128 characters.');
         if(input.currentPassword===input.newPassword)fail(400,'Choose a password different from your current password.');
         const found=db.prepare('SELECT password_hash,salt FROM app_users WHERE id=?').get(user.id);
         const candidate=await passwordHash(input.currentPassword,found.salt);

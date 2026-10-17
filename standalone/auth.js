@@ -7,7 +7,7 @@
   $('#auth-description').textContent=registering?'Create your own financial workspace.':'Sign in to your financial workspace.';
   $('#name-field').hidden=!registering;$('#name').required=registering;
   $('#password').autocomplete=registering?'new-password':'current-password';
-  $('#password').minLength=registering?12:1;$('#password-help').hidden=!registering;
+  $('#password').minLength=registering?8:1;$('#password-help').hidden=!registering;
   $('#auth-submit').textContent=registering?'Create account':'Sign in';
   $('#show-password').addEventListener('click',()=>{
     const show=$('#password').type==='password';$('#password').type=show?'text':'password';

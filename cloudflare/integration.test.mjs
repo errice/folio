@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 await import('./scram.js');
 const origin=process.env.FOLIO_TEST_URL||'http://127.0.0.1:4176';
 if(!/^http:\/\/127\.0\.0\.1:\d+$/.test(origin)&&process.env.FOLIO_REMOTE_TEST!=='true')throw Error('Remote tests require explicit FOLIO_REMOTE_TEST=true. Use disposable accounts only.');
-const suffix=Date.now(),password='Temporary-test-password-42',nextPassword='Replacement-test-password-43';
+const suffix=Date.now(),password='sunshine',nextPassword='daylight';
 async function call(path,{method='GET',body,cookie,user,requestOrigin=origin}={}){
  let expectedSignature;
  if(path==='/api/auth/register'&&body?.password){const {password,...rest}=body;body={...rest,credential:await folioScram.credentials(password)};}
